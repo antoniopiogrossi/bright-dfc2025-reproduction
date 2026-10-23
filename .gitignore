@@ -1,0 +1,29 @@
+# Dati locali
+/dati/
+
+# Repository esterni: verranno documentati nel README
+/BRIGHT/
+/soluzione_vincitori/
+
+# Ambienti virtuali Python
+/venv/
+/venv-tesi/
+/.venv/
+
+# File temporanei Python e Jupyter
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# File di sistema macOS
+.DS_Store
+
+# Credenziali e configurazioni locali
+.env
+.env.*
+!.env.example
+
+# Pesi e checkpoint dei modelli
+*.pth
+*.pt
+*.ckpt

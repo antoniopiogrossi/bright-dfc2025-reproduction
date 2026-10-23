@@ -1,0 +1,12 @@
+evento,train,holdout,val,test
+bata-explosion,70,23,14,0
+beirut-explosion,89,27,17,0
+congo-volcano,81,27,15,0
+haiti-earthquake,48,15,10,0
+hawaii-wildfire,42,14,9,0
+la_palma-volcano,647,189,97,0
+libya-flood,83,26,15,0
+marshall-wildfire,0,0,0,77
+morocco-earthquake,392,116,59,0
+noto-earthquake,0,0,0,79
+turkey-earthquake,777,224,113,0

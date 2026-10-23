@@ -1,0 +1,4 @@
+id,righe,colonne,pixel_validi,classi_presenti
+bata-explosion_00000014,1024,1024,1048576,"[0, 1]"
+bata-explosion_00000047,1024,1024,1048576,"[0, 1]"
+bata-explosion_00000049,1024,1024,1048576,"[0, 1, 2, 3]"

@@ -1,0 +1,12 @@
+# Dipendenze dei notebook 01–03.
+# Versioni rilevate nell'ambiente locale Python 3.11.9, macOS arm64.
+# L'installazione in un ambiente pulito deve ancora essere verificata.
+
+numpy==2.4.6
+pandas==3.0.6
+matplotlib==3.11.2
+rasterio==1.4.4
+Pillow==12.3.0
+torch==2.14.1
+remotezip==0.12.6
+ipykernel==7.4.0
