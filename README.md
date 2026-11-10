@@ -1,175 +1,78 @@
-# BRIGHT · Preparazione alla riproduzione del DFC2025 Track 2
+# BRIGHT · Riproduzione del DFC 2025, Track 2
 
-Progetto di tesi dedicato allo studio della mappatura del danno agli edifici
-mediante immagini ottiche pre-evento e SAR post-evento.
+È possibile riconoscere il danno a un edificio confrontando un’immagine ottica acquisita **prima** del disastro con un’immagine radar (SAR) acquisita **dopo**? Questo progetto di tesi studia il problema sul dataset BRIGHT. L’uscita attesa è una mappa in cui ogni pixel appartiene a una delle quattro classi: sfondo, edificio integro, danneggiato o distrutto.
 
-L'obiettivo è riprodurre una soluzione di riferimento del
-2025 IEEE GRSS Data Fusion Contest, Track 2, e successivamente
-studiare possibili miglioramenti attraverso esperimenti controllati.
+L’obiettivo sperimentale è riprodurre la soluzione vincitrice del **2025 IEEE GRSS Data Fusion Contest, Track 2**, misurare quanto i risultati si avvicinano a quelli pubblicati e usare la riproduzione come riferimento per valutare eventuali miglioramenti.
 
-## Stato del progetto
+**Stato attuale:** sono disponibili l’esplorazione di tre esempi, il controllo delle liste ufficiali e la verifica delle metriche. Non sono ancora state prodotte previsioni da una rete. Le tabelle presenti nel repository descrivono i dati e il comportamento della valutazione.
 
-È stata completata una prima fase di esplorazione dei dati,
-controllo delle suddivisioni e verifica delle metriche.
+## Percorso di lettura
 
-Non è ancora stato addestrato o eseguito un modello per produrre
-previsioni. I risultati presenti documentano controlli sui dati
-e prove con previsioni artificiali.
+| Notebook | Domanda a cui risponde | Risultato |
+|---|---|---|
+| [01 · Esplorazione BRIGHT](01_esplorazione_bright.ipynb) | Che cosa entra nella rete e qual è la risposta di riferimento? | Recupera tre esempi di Bata, confronta ottico, SAR e maschera del primo esempio, ne verifica la griglia geografica e prepara i tre esempi in batch PyTorch. |
+| [02 · Dati e split](02_dati_e_split.ipynb) | Quali esempi compaiono nelle quattro liste e quali abbiamo davvero sul disco? | Confronta gli identificativi, verifica la disponibilità locale e conta i pixel per classe nelle maschere degli esempi completi distinti. [Tabelle CSV](risultati/02_dati_e_split/) |
+| [03 · Metriche](03_metriche.ipynb) | Come viene valutata una mappa del danno? | Confronta i calcoli diretti con la classe originale `Evaluator` di BRIGHT e verifica i casi limite con previsioni artificiali. [Tabelle CSV](risultati/03_metriche/) |
 
-## Notebook
+## Organizzazione del codice
 
-| Notebook | Contenuto |
+I notebook restano nella radice del progetto: scelgono gli esempi, espongono il ragionamento e mostrano figure e tabelle. La logica riutilizzabile è nel package [`src/bright_reproduction/`](src/bright_reproduction/).
+
+| Moduli | Responsabilità |
 |---|---|
-| `01_esplorazione_bright.ipynb` | Download di tre esempi, lettura di ottico/SAR/maschere, controllo della griglia geografica, normalizzazione e caricamento in batch PyTorch |
-| `02_dati_e_split.ipynb` | Controllo delle liste ufficiali, sovrapposizioni, distribuzione per evento, disponibilità locale e statistiche delle maschere |
-| `03_metriche.ipynb` | Verifica di matrice di confusione, IoU e F1, confronto con il codice BRIGHT, casi limite e prove sulle maschere locali |
+| `download.py`, `raster.py`, `geospatial.py` | Cercare i file nell’archivio remoto, controllarne l’integrità al recupero, leggere GeoTIFF e maschere, confrontare le griglie dichiarate. |
+| `data.py`, `visualization.py` | Preparare gli ingressi, caricare esempi con `BrightEsempiDataset` e visualizzare ottico, SAR e annotazione. |
+| `splits.py`, `campione.py` | Leggere e confrontare le liste con `SuddivisioniBright`, controllare i file locali e calcolare le statistiche del campione. |
+| `metriche.py` | Calcolare metriche indipendenti e caricare il valutatore dal codice originale BRIGHT per il confronto. |
 
-I notebook includono spiegazioni e output salvati.
-Le tabelle esportate sono disponibili in:
+## Riprodurre le analisi
 
-- `risultati/02_dati_e_split/`
-- `risultati/03_metriche/`
+L’ambiente di riferimento è Python 3.11.9 su macOS arm64, con VS Code e Jupyter. [`requirements.txt`](requirements.txt) riporta le versioni dell’ambiente di analisi; l’installazione da zero su altre configurazioni resta da verificare.
 
-## Materiali di riferimento
-
-- BRIGHT: https://github.com/ChenHongruixuan/BRIGHT
-- Dataset BRIGHT: https://huggingface.co/datasets/Kullervo/BRIGHT
-- Soluzione dei vincitori:
-  https://github.com/Henryjiepanli/Building-Guided-Pseudo-Label-Learning-for-Cross-Modal-Building-Damage-Mapping
-
-Versioni del codice utilizzate:
-
-| Repository | Commit |
-|---|---|
-| BRIGHT | `59269142f3a3550320513e362692732f46486985` |
-| Soluzione dei vincitori | `fe8a8580949dc4e1e38a5a1e3901cee7e20f806b` |
-
-Questi repository sono materiali esterni: il loro codice non è
-incluso in questo repository. Restano applicabili le rispettive
-licenze e condizioni di utilizzo.
-
-## Ambiente utilizzato
-
-I notebook sono stati eseguiti localmente con:
-
-- Python 3.11.9;
-- macOS su architettura arm64;
-- VS Code con supporto ai notebook Jupyter.
-
-`requirements.txt` riporta le versioni delle dipendenze rilevate
-nell'ambiente utilizzato. L'installazione in un ambiente pulito
-non è ancora stata verificata.
-
-Queste dipendenze riguardano i notebook 01–03 e non costituiscono
-ancora l'ambiente per l'addestramento della soluzione dei vincitori.
-
-## Preparazione dell'ambiente
-
-Dalla cartella principale del progetto, utilizzando Python 3.11:
+**1. Preparare l’ambiente.** Dalla radice di questo repository, per un nuovo ambiente:
 
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
+python -m pip install -e . --no-deps
 python -m ipykernel install --user --name bright-dfc2025 --display-name "Python (BRIGHT DFC2025)"
 ```
 
-In VS Code selezionare il kernel `Python (BRIGHT DFC2025)`.
+Se si usa già `venv-tesi` con le dipendenze e il package installati, basta selezionare il kernel **Python (venv-tesi)**. L’installazione con `-e` permette ai notebook di importare il codice direttamente da `src/`.
 
-## Recupero dei repository esterni
-
-Eseguire questi comandi dalla cartella principale del progetto,
-se le cartelle BRIGHT e soluzione_vincitori non sono già presenti:
+**2. Recuperare il riferimento BRIGHT.** I notebook leggono le liste e il codice delle metriche dalla copia locale. Per crearla:
 
 ```bash
 git clone https://github.com/ChenHongruixuan/BRIGHT.git BRIGHT
 git -C BRIGHT checkout 59269142f3a3550320513e362692732f46486985
 ```
 
+**3. Eseguire 01 → 02 → 03**, mantenendo la radice del progetto come directory di lavoro. Il notebook 01 recupera nove GeoTIFF dall’[archivio dati BRIGHT](https://huggingface.co/datasets/Kullervo/BRIGHT): tre ottici, tre SAR e tre maschere. Li salva in `dati/bright_esempi/{pre-event,post-event,target}/`. La ricerca e la verifica dell’integrità richiedono Internet anche se i file sono già presenti. I notebook 02 e 03 usano i dati locali e rigenerano i CSV in `risultati/`.
+
+Per studiare anche il codice dei vincitori, la versione presa come riferimento si recupera separatamente. Non serve per eseguire i tre notebook:
+
 ```bash
 git clone https://github.com/Henryjiepanli/Building-Guided-Pseudo-Label-Learning-for-Cross-Modal-Building-Damage-Mapping.git soluzione_vincitori
 git -C soluzione_vincitori checkout fe8a8580949dc4e1e38a5a1e3901cee7e20f806b
 ```
 
-Il checkout fissa la versione del codice utilizzata nelle analisi.
+I dati e le due copie dei repository esterni non sono inclusi qui; per il loro utilizzo valgono le condizioni delle rispettive fonti.
 
-## Dati ed esecuzione
+## Cosa hanno mostrato i primi controlli
 
-I dati non sono inclusi nel repository.
+- **Dati.** Nel primo esempio la griglia dichiarata coincide per ottico, SAR e maschera. Il SAR ha una sola banda: replicarla su tre canali serve a preparare l’ingresso nel formato usato dal caricatore dei vincitori. La maschera conserva gli indici interi delle classi.
+- **Split.** Train, holdout, validation e test contengono rispettivamente 2.229, 661, 349 e 156 voci: **3.395 voci, 3.393 identificativi distinti**. `bata-explosion_00000049` compare in train e holdout, entrambi destinati al training nel protocollo originario; `libya-flood_00000024` compare in train e validation. Le liste originali sono conservate. Prima di addestrare occorre documentare come si evita di valutare un esempio già visto.
+- **Metriche.** Sulle tre maschere locali, prevedere sempre «sfondo» dà **88,91% di accuratezza** ma **0% di IoU per ciascuna classe edificio**. La mIoU sulle quattro classi, calcolata dopo aver accumulato i pixel, è **22,23%**. Il caso mostra perché l’accuratezza da sola descrive male la capacità di riconoscere il danno. Questi numeri riguardano tre esempi dello stesso evento.
+- **Protocollo.** Il notebook 03 distingue la localizzazione binaria, l’F1 del danno sui veri pixel edificio nello script BRIGHT esaminato e la mIoU sull’intera mappa. Prima del confronto con la classifica va verificato quale calcolo riproduca il punteggio ufficiale.
 
-Eseguire i notebook nell'ordine 01, 02 e 03, mantenendoli nella
-cartella principale del progetto e utilizzando tale cartella
-come directory di lavoro.
+## Esperimenti previsti
 
-Il notebook 01 contiene la procedura per recuperare tre esempi
-dall'archivio pubblico `dfc25_track2_trainval.zip`, scaricando
-i file selezionati mediante RemoteZip.
+| Fase | Lavoro previsto | Risultato da documentare |
+|---|---|---|
+| 1 · Primo modello di riferimento | Definire split operativi e protocollo di valutazione. Provare una U-Net su pochi esempi, poi estendere l’addestramento su GPU. | Una prima mappa predetta confrontata con la maschera corretta; successivamente, metriche su dati separati dal training. |
+| 2 · Localizzazione degli edifici | Riprodurre la fase `BuildingExtraction` dei vincitori, che produce la mappa degli edifici usata dalla fase successiva. | Qualità dei footprint predetti, misurata rispetto al riferimento binario edificio/sfondo. |
+| 3 · Classificazione del danno | Collegare `ChangeDetection` alla mappa degli edifici predetta; ricostruire l’uso delle pseudo-etichette e il post-processing. | Mappe del danno e risultati per classe, indicando quali immagini e annotazioni sono state usate in ogni fase. |
+| 4 · Confronto e miglioramenti | Confrontare la riproduzione con i risultati pubblicati a parità di protocollo; analizzare gli errori e provare una modifica alla volta. | Una tabella di confronto che riporti split, configurazione e metriche; ripetizioni con semi diversi per misurare la variabilità. |
 
-I file vengono salvati in:
-
-- `dati/bright_esempi/pre-event/`
-- `dati/bright_esempi/post-event/`
-- `dati/bright_esempi/target/`
-
-Il download richiede accesso a Internet e la disponibilità della
-sorgente remota.
-
-Per ciascun notebook, eseguire tutte le celle dall'inizio.
-I notebook 02 e 03 utilizzano i dati scaricati dal notebook 01.
-
-## Principali osservazioni
-
-### Suddivisioni
-
-Nella versione analizzata, le liste contengono:
-
-- train: 2.229 identificativi;
-- holdout: 661;
-- validation: 349;
-- test: 156.
-
-Sono presenti due identificativi condivisi:
-
-- `bata-explosion_00000049`: train e holdout;
-- `libya-flood_00000024`: train e validation.
-
-Secondo il README ufficiale, train e holdout sono destinati
-all'addestramento. Le liste originali non sono state modificate.
-
-Prima degli esperimenti saranno definite e documentate le liste
-operative, evitando duplicazioni e condivisioni inappropriate
-tra addestramento e valutazione.
-
-### Metriche
-
-Le verifiche hanno evidenziato che:
-
-- l'F1 binario di BRIGHT può restituire NaN quando precisione
-  e recall sono entrambe zero;
-- una classe assente sia nel riferimento sia nella previsione
-  riceve IoU zero nell'implementazione analizzata;
-- la media delle metriche per immagine può differire dalla metrica
-  calcolata sulla matrice di confusione accumulata;
-- la selezione dei pixel valutati cambia il significato del punteggio.
-
-Il notebook 03 distingue il comportamento del codice ispezionato
-dal protocollo ufficiale della competizione, ancora da confermare
-prima del confronto con i risultati pubblicati.
-
-## Limiti attuali
-
-Le statistiche locali riguardano tre esempi di Bata e non descrivono
-l'intero dataset.
-
-Le prove sulle metriche utilizzano previsioni artificiali:
-non misurano le prestazioni di una rete.
-
-Nei materiali pubblici controllati non sono stati individuati
-i pesi finali della soluzione dei vincitori.
-Il relativo codice contiene chiamate esplicite a CUDA.
-
-## Prossimo passo
-
-Eseguire una prima prova con un modello su un campione limitato,
-verificando caricamento dei dati, produzione delle previsioni
-e valutazione, prima di affrontare esperimenti più estesi.
+Nei materiali dei vincitori esaminati non sono stati individuati i pesi finali e gli script contengono chiamate esplicite a CUDA. Prima di avviare una riproduzione completa occorre quindi verificare l’ambiente GPU e quali componenti sia necessario riaddestrare.
