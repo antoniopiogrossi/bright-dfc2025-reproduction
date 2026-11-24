@@ -29,3 +29,6 @@ __pycache__/
 *.ckpt
 # Metadati generati da pip
 *.egg-info/
+
+# Checkpoint dei modelli
+checkpoints/

@@ -93,3 +93,94 @@ def visualizza_esempio(
     fig.tight_layout(rect=[0, 0.08, 1, 0.95])
 
     return fig, assi
+
+
+def visualizza_previsione_patch(inputs, target, previsione):
+    """Confronta immagini, maschera reale e previsione."""
+
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import ListedColormap, BoundaryNorm
+    from matplotlib.patches import Patch
+
+    inputs = inputs.detach().cpu()
+    target = target.detach().cpu()
+    previsione = previsione.detach().cpu()
+
+    # Inversione della normalizzazione [-1, 1]
+    ottico = (
+        inputs[0, :3].permute(1, 2, 0) + 1
+    ) / 2
+
+    sar = (inputs[0, 3] + 1) / 2
+
+    colori = [
+        "#222222",
+        "#329b72",
+        "#e8b848",
+        "#d94d4d"
+    ]
+
+    classi = [
+        "Sfondo",
+        "Integro",
+        "Danneggiato",
+        "Distrutto"
+    ]
+
+    cmap = ListedColormap(colori)
+    cmap.set_bad("#bbbbbb")
+
+    norm = BoundaryNorm(
+        [-0.5, 0.5, 1.5, 2.5, 3.5],
+        cmap.N
+    )
+
+    maschera = target[0].float()
+    predetta = previsione[0].float()
+
+    non_validi = (maschera < 0) | (maschera > 3)
+
+    maschera[non_validi] = float("nan")
+    predetta[non_validi] = float("nan")
+
+    fig, axes = plt.subplots(2, 2, figsize=(10, 10))
+
+    axes[0, 0].imshow(ottico.clamp(0, 1))
+    axes[0, 0].set_title("Ottico pre-evento")
+
+    axes[0, 1].imshow(sar, cmap="gray", vmin=0, vmax=1)
+    axes[0, 1].set_title("SAR post-evento")
+
+    axes[1, 0].imshow(
+        maschera, cmap=cmap, norm=norm,
+        interpolation="nearest"
+    )
+    axes[1, 0].set_title("Ground truth")
+
+    axes[1, 1].imshow(
+        predetta, cmap=cmap, norm=norm,
+        interpolation="nearest"
+    )
+    axes[1, 1].set_title("Previsione U-Net")
+
+    for ax in axes.flat:
+        ax.axis("off")
+
+    legenda = [
+        Patch(facecolor=c, label=f"{i} - {nome}")
+        for i, (c, nome) in enumerate(zip(colori, classi))
+    ]
+
+    legenda.append(
+        Patch(facecolor="#bbbbbb", label="Pixel ignorati")
+    )
+
+    fig.legend(
+        handles=legenda,
+        loc="lower center",
+        ncol=3
+    )
+
+    fig.tight_layout(rect=[0, 0.07, 1, 1])
+
+    return fig

@@ -206,3 +206,68 @@ def valuta_perfetta_per_immagine(maschere_locali, evaluator):
         righe_per_immagine
     ).set_index("id")
     return metriche_perfette_per_immagine
+
+
+def valuta_previsione(riferimento, previsione, ignore_index=255):
+    """Calcola le metriche diagnostiche sui pixel validi."""
+
+    riferimento = np.asarray(riferimento)
+    previsione = np.asarray(previsione)
+
+    if riferimento.shape != previsione.shape:
+        raise ValueError("Dimensioni delle maschere differenti.")
+
+    validi = riferimento != ignore_index
+
+    riferimento = riferimento[validi]
+    previsione = previsione[validi]
+
+    if riferimento.size == 0:
+        raise ValueError("Nessun pixel valido.")
+
+    matrice = matrice_confusione(
+        riferimento, previsione, n_classi=4
+    )
+
+    TP, FP, FN, iou, f1 = metriche_per_classe(matrice)
+
+    tabella = pd.DataFrame({
+        "Classe": [
+            "Sfondo",
+            "Integro",
+            "Danneggiato",
+            "Distrutto"
+        ],
+        "Pixel reali": matrice.sum(axis=1),
+        "Pixel predetti": matrice.sum(axis=0),
+        "IoU": iou,
+        "F1": f1
+    }).set_index("Classe")
+
+    matrice_binaria = matrice_confusione(
+        (riferimento > 0).astype(np.int64),
+        (previsione > 0).astype(np.int64),
+        n_classi=2
+    )
+
+    classi_presenti = matrice.sum(axis=1) > 0
+
+    riepilogo = {
+        "Accuracy": TP.sum() / matrice.sum(),
+
+        "mIoU diagnostica": np.nanmean(iou),
+
+        "mIoU 4 classi": np.nan_to_num(
+            iou, nan=0.0
+        ).mean(),
+
+        "mIoU classi presenti": iou[
+            classi_presenti
+        ].mean(),
+
+        "F1 edificio": metriche_binarie(
+            matrice_binaria
+        )["F1/Dice edificio"]
+    }
+
+    return matrice, tabella, riepilogo
