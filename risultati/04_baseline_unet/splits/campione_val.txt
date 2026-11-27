@@ -1,0 +1,9 @@
+bata-explosion_00000012
+beirut-explosion_00000047
+congo-volcano_00000014
+haiti-earthquake_00000059
+hawaii-wildfire_00000002
+la_palma-volcano_00000691
+libya-flood_00000017
+morocco-earthquake_00000448
+turkey-earthquake_00000845

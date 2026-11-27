@@ -3,6 +3,7 @@
 import numpy as np
 import rasterio
 import matplotlib.pyplot as plt
+from pathlib import Path
 from matplotlib.colors import ListedColormap, BoundaryNorm
 from matplotlib.patches import Patch
 
@@ -182,5 +183,238 @@ def visualizza_previsione_patch(inputs, target, previsione):
     )
 
     fig.tight_layout(rect=[0, 0.07, 1, 1])
+
+    return fig
+
+
+def visualizza_previsione_immagine(
+    cartella,
+    risultato,
+    titolo=None,
+    ignore_index=255
+):
+    """Visualizza ottico, SAR, ground truth e previsione completa."""
+
+    cartella = Path(cartella)
+    id_ = risultato["id"]
+
+    percorso_ottico = (
+        cartella / "pre-event"
+        / f"{id_}_pre_disaster.tif"
+    )
+
+    percorso_sar = (
+        cartella / "post-event"
+        / f"{id_}_post_disaster.tif"
+    )
+
+    with rasterio.open(percorso_ottico) as file:
+        ottico = np.moveaxis(file.read([1, 2, 3]), 0, -1)
+
+        validi_ottico = (
+            file.read_masks([1, 2, 3]) > 0
+        ).all(axis=0)
+
+    with rasterio.open(percorso_sar) as file:
+        sar = file.read(1, masked=True)
+
+    riferimento = risultato["riferimento"]
+    previsione = risultato["previsione"]
+
+    if not (
+        ottico.shape[:2]
+        == sar.shape
+        == riferimento.shape
+        == previsione.shape
+    ):
+        raise ValueError("Dimensioni incompatibili.")
+
+    validita = riferimento != ignore_index
+
+    riferimento = np.ma.array(
+        riferimento,
+        mask=~validita
+    )
+
+    previsione = np.ma.array(
+        previsione,
+        mask=~validita
+    )
+
+    colori = [
+        "#222222",
+        "#329b72",
+        "#e8b848",
+        "#d94d4d"
+    ]
+
+    classi = [
+        "Sfondo",
+        "Integro",
+        "Danneggiato",
+        "Distrutto"
+    ]
+
+    cmap = ListedColormap(colori)
+    cmap.set_bad("#bbbbbb")
+
+    norm = BoundaryNorm(
+        [-0.5, 0.5, 1.5, 2.5, 3.5],
+        cmap.N
+    )
+
+    cmap_sar = plt.get_cmap("gray").copy()
+    cmap_sar.set_bad("#bbbbbb")
+
+    fig, axes = plt.subplots(
+        2, 2, figsize=(12, 12)
+    )
+
+    axes[0, 0].set_facecolor("#bbbbbb")
+
+    axes[0, 0].imshow(
+        ottico,
+        alpha=validi_ottico.astype(float)
+    )
+
+    axes[0, 0].set_title("Ottico pre-evento")
+
+    axes[0, 1].imshow(
+        sar,
+        cmap=cmap_sar,
+        vmin=0,
+        vmax=255
+    )
+
+    axes[0, 1].set_title("SAR post-evento")
+
+    axes[1, 0].imshow(
+        riferimento,
+        cmap=cmap,
+        norm=norm,
+        interpolation="nearest"
+    )
+
+    axes[1, 0].set_title("Ground truth")
+
+    axes[1, 1].imshow(
+        previsione,
+        cmap=cmap,
+        norm=norm,
+        interpolation="nearest"
+    )
+
+    axes[1, 1].set_title("Previsione U-Net")
+
+    for ax in axes.flat:
+        ax.axis("off")
+
+    legenda = [
+        Patch(facecolor=c, label=f"{i} - {nome}")
+        for i, (c, nome) in enumerate(zip(colori, classi))
+    ]
+
+    legenda.append(
+        Patch(
+            facecolor="#bbbbbb",
+            label="Pixel ignorati"
+        )
+    )
+
+    fig.legend(
+        handles=legenda,
+        loc="lower center",
+        ncol=5,
+        frameon=False
+    )
+
+    fig.suptitle(
+        titolo if titolo is not None else id_,
+        fontsize=16
+    )
+
+    fig.tight_layout(rect=[0, 0.05, 1, 0.95])
+
+    return fig
+
+
+def visualizza_storico_addestramento(storico):
+    """Visualizza le loss e le metriche per epoca."""
+
+    epoche = [riga["epoca"] for riga in storico]
+
+    train_loss = [riga["train_loss"] for riga in storico]
+    val_loss = [riga["val_loss"] for riga in storico]
+
+    accuracy = [
+        riga["Accuracy"] * 100 for riga in storico
+    ]
+
+    miou = [
+        riga["mIoU diagnostica"] * 100
+        for riga in storico
+    ]
+
+    f1 = [
+        riga["F1 edificio"] * 100
+        for riga in storico
+    ]
+
+    epoca_migliore = epoche[np.argmax(miou)]
+
+    fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+
+    # Training e validation loss
+    axes[0].plot(
+        epoche, train_loss,
+        marker="o", label="Training loss"
+    )
+
+    axes[0].plot(
+        epoche, val_loss,
+        marker="o", label="Validation loss"
+    )
+
+    axes[0].set_title("Curve di apprendimento")
+    axes[0].set_xlabel("Epoca")
+    axes[0].set_ylabel("Cross Entropy Loss")
+
+    # Metriche di validation
+    axes[1].plot(
+        epoche, accuracy,
+        marker="o", label="Accuracy"
+    )
+
+    axes[1].plot(
+        epoche, miou,
+        marker="o", label="mIoU diagnostica"
+    )
+
+    axes[1].plot(
+        epoche, f1,
+        marker="o", label="F1 edificio"
+    )
+
+    axes[1].set_title("Metriche di validation")
+    axes[1].set_xlabel("Epoca")
+    axes[1].set_ylabel("Percentuale (%)")
+    axes[1].set_ylim(0, 100)
+
+    for ax in axes:
+
+        ax.axvline(
+            epoca_migliore,
+            color="gray",
+            linestyle="--",
+            label=f"Epoca migliore ({epoca_migliore})"
+        )
+
+        ax.set_xticks(epoche)
+        ax.grid(alpha=0.25)
+        ax.legend()
+
+    fig.suptitle("Baseline U-Net multimodale BRIGHT")
+
+    fig.tight_layout()
 
     return fig

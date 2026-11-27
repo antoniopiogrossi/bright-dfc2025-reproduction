@@ -67,3 +67,43 @@ def conta_classi(maschera, codici=(0, 1, 2, 3)):
             for codice in codici
         },
     }
+
+
+def maschera_validita_congiunta(
+    percorso_ottico,
+    percorso_sar,
+    percorso_target,
+    ottico_rigoroso=True
+):
+    """Costruisce la maschera di validità multimodale."""
+
+    with rasterio.open(percorso_ottico) as raster:
+        validita_bande = raster.read_masks() > 0
+
+        if ottico_rigoroso:
+            validita_ottico = validita_bande.all(axis=0)
+        else:
+            validita_ottico = validita_bande.any(axis=0)
+
+    with rasterio.open(percorso_sar) as raster:
+        validita_sar = raster.read_masks(1) > 0
+
+    maschera = leggi_maschera(percorso_target)
+
+    validita_target = (
+        ~np.ma.getmaskarray(maschera)
+        & np.isin(maschera.data, [0, 1, 2, 3])
+    )
+
+    if not (
+        validita_ottico.shape
+        == validita_sar.shape
+        == validita_target.shape
+    ):
+        raise ValueError("Dimensioni incompatibili.")
+
+    return (
+        validita_ottico
+        & validita_sar
+        & validita_target
+    )

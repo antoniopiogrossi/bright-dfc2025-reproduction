@@ -1,0 +1,12 @@
+{
+    "patch_size": 128,
+    "ignore_index": 255,
+    "normalizzazione": "ImageNet",
+    "validita_ottico": "rigorosa",
+    "tolleranza_griglie": 0.05,
+    "seed_campione": 42,
+    "patch_train": 1017,
+    "patch_val": 576,
+    "pixel_validi_train": 15680907,
+    "pixel_validi_val": 8062840
+}

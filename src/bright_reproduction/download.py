@@ -6,11 +6,14 @@ import zlib
 from remotezip import RemoteZip
 
 
-def cerca_file_esempi(url_archivio, identificativi):
-    """Restituisce i tre percorsi attesi per ogni esempio nel train.
+def cerca_file_esempi(
+    url_archivio,
+    identificativi,
+    split="train",
+    solo_target=False
+):
+    """Cerca i file degli esempi negli archivi DFC2025 Track 2."""
 
-    Controlla che ottico, SAR e maschera siano presenti nell'archivio.
-    """
     identificativi = list(identificativi)
 
     if not identificativi:
@@ -19,16 +22,36 @@ def cerca_file_esempi(url_archivio, identificativi):
     if len(set(identificativi)) != len(identificativi):
         raise ValueError("Gli identificativi contengono duplicati.")
 
+    if split not in {"train", "val"}:
+        raise ValueError(f"Split non supportato: {split}")
+
     suffissi = {
         "pre-event": "_pre_disaster.tif",
         "post-event": "_post_disaster.tif",
         "target": "_building_damage.tif",
     }
 
+    if split == "train":
+        if solo_target:
+            raise ValueError(
+                "solo_target è previsto per la validation."
+            )
+
+        prefisso = "dfc25_track2_trainval/train"
+        categorie = ["pre-event", "post-event", "target"]
+
+    elif solo_target:
+        prefisso = "dfc25_track2_val_labels"
+        categorie = ["target"]
+
+    else:
+        prefisso = "dfc25_track2_trainval/val"
+        categorie = ["pre-event", "post-event"]
+
     percorsi_attesi = [
-        f"dfc25_track2_trainval/train/{categoria}/{nome}{suffisso}"
+        f"{prefisso}/{categoria}/{nome}{suffissi[categoria]}"
         for nome in identificativi
-        for categoria, suffisso in suffissi.items()
+        for categoria in categorie
     ]
 
     with RemoteZip(
@@ -113,3 +136,68 @@ def scarica_file_esempi(url_archivio, percorsi_remoti, cartella_dati):
             })
 
     return risultati
+
+
+def scarica_campione_operativo(
+    url_dati,
+    url_labels,
+    campione,
+    cartella_dati
+):
+    """Scarica gli esempi di training e validation separatamente."""
+
+    cartella_dati = Path(cartella_dati)
+
+    train_ids = campione["train"]
+    val_ids = campione["val"]
+
+    if set(train_ids) & set(val_ids):
+        raise ValueError(
+            "Sovrapposizione tra training e validation."
+        )
+
+    # Ricerca dei file negli archivi
+    file_train = cerca_file_esempi(
+        url_dati,
+        train_ids,
+        split="train"
+    )
+
+    file_val = cerca_file_esempi(
+        url_dati,
+        val_ids,
+        split="val"
+    )
+
+    labels_val = cerca_file_esempi(
+        url_labels,
+        val_ids,
+        split="val",
+        solo_target=True
+    )
+
+    # Download del training
+    risultati_train = scarica_file_esempi(
+        url_dati,
+        file_train,
+        cartella_dati / "train"
+    )
+
+    # Download delle immagini di validation
+    risultati_val = scarica_file_esempi(
+        url_dati,
+        file_val,
+        cartella_dati / "val"
+    )
+
+    # Download delle maschere di validation
+    risultati_val += scarica_file_esempi(
+        url_labels,
+        labels_val,
+        cartella_dati / "val"
+    )
+
+    return {
+        "train": risultati_train,
+        "val": risultati_val
+    }

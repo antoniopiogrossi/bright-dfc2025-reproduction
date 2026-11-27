@@ -1,5 +1,6 @@
 """Controlli delle griglie geografiche dei raster."""
 
+from rasterio.warp import transform_bounds
 import rasterio
 
 
@@ -77,3 +78,72 @@ def verifica_griglie(percorsi, nome_riferimento, tolleranza=1e-6):
         }
 
     return risultati
+
+def confronta_trasformazioni(percorso_riferimento, percorso):
+    """Analizza gli scarti geografici ai quattro angoli."""
+
+    with rasterio.open(percorso_riferimento) as rif:
+        with rasterio.open(percorso) as raster:
+
+            if rif.crs != raster.crs:
+                raise ValueError("CRS differenti.")
+
+            if rif.shape != raster.shape:
+                raise ValueError("Dimensioni differenti.")
+
+            inversa = ~rif.transform
+
+            angoli = [
+                (0, 0),
+                (rif.width, 0),
+                (0, rif.height),
+                (rif.width, rif.height)
+            ]
+
+            scarti = []
+
+            for colonna, riga in angoli:
+
+                x, y = raster.transform * (colonna, riga)
+                c, r = inversa * (x, y)
+
+                scarti.append({
+                    "angolo": (colonna, riga),
+                    "delta_colonna": c - colonna,
+                    "delta_riga": r - riga
+                })
+
+            return {
+                "risoluzione_riferimento": rif.res,
+                "risoluzione_raster": raster.res,
+                "trasformazione_riferimento": tuple(rif.transform),
+                "trasformazione_raster": tuple(raster.transform),
+                "scarti": scarti
+            }
+
+def estensione_geografica(percorso):
+    """Restituisce i limiti geografici del raster in WGS84."""
+
+    with rasterio.open(percorso) as raster:
+
+        if raster.crs is None:
+            raise ValueError(f"CRS assente: {percorso}")
+
+        return transform_bounds(
+            raster.crs,
+            "EPSG:4326",
+            *raster.bounds,
+            densify_pts=21
+        )
+
+
+def sovrapposizione_geografica(limiti_a, limiti_b):
+    """Controlla se due rettangoli geografici si intersecano
+    con area positiva."""
+
+    sinistra = max(limiti_a[0], limiti_b[0])
+    basso = max(limiti_a[1], limiti_b[1])
+    destra = min(limiti_a[2], limiti_b[2])
+    alto = min(limiti_a[3], limiti_b[3])
+
+    return destra > sinistra and alto > basso

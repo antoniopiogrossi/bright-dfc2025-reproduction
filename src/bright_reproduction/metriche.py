@@ -271,3 +271,57 @@ def valuta_previsione(riferimento, previsione, ignore_index=255):
     }
 
     return matrice, tabella, riepilogo
+
+
+def riepilogo_da_matrice(matrice):
+    """Calcola le metriche diagnostiche dalla matrice aggregata."""
+
+    matrice = np.asarray(matrice)
+
+    if matrice.shape != (4, 4):
+        raise ValueError("Attesa una matrice 4x4.")
+
+    if matrice.sum() == 0:
+        raise ValueError("Nessun pixel valutabile.")
+
+    TP, FP, FN, iou, f1 = metriche_per_classe(matrice)
+
+    tabella = pd.DataFrame({
+        "Classe": [
+            "Sfondo",
+            "Integro",
+            "Danneggiato",
+            "Distrutto"
+        ],
+        "Pixel reali": matrice.sum(axis=1),
+        "Pixel predetti": matrice.sum(axis=0),
+        "IoU": iou,
+        "F1": f1
+    }).set_index("Classe")
+
+    matrice_binaria = np.array([
+        [
+            matrice[0, 0],
+            matrice[0, 1:].sum()
+        ],
+        [
+            matrice[1:, 0].sum(),
+            matrice[1:, 1:].sum()
+        ]
+    ])
+
+    riepilogo = {
+        "Accuracy": TP.sum() / matrice.sum(),
+        "mIoU diagnostica": np.nanmean(iou),
+        "mIoU 4 classi": np.nan_to_num(
+            iou, nan=0.0
+        ).mean(),
+        "mIoU classi presenti": iou[
+            matrice.sum(axis=1) > 0
+        ].mean(),
+        "F1 edificio": metriche_binarie(
+            matrice_binaria
+        )["F1/Dice edificio"]
+    }
+
+    return tabella, riepilogo
